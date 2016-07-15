@@ -9,3 +9,6 @@ mail.smtp.options               : {"secure":false,"port":25,"user":"","password"
 mail.address.from               : your@yourwebsite.com
 mail.address.reply              : your@yourwebsite.com
 mail.address.bcc                :
+
+transports						:["火车","动车","汽车","飞机","自驾游","轮船","步行","自行车","IronMan"]
+transportColors					:["#8CBF26","#1BA1E2","#DEDFDE","#fa0","#00ABA9","#996600","#A200FF","#E51400"]

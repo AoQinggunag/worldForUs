@@ -48,3 +48,5 @@ temp
 /node_modules
 
 output/
+
+*.pid

@@ -1,10 +1,48 @@
 @{layout("layout_map")}
+@{notranslate}
+<style>
+    .cities {border-top:1px solid #eeeeee;border-bottom:1px solid #eeeeee; margin-top:4px;}
+    .ml20 {margin-left: 20px;}
+    .description {color:#999;}
+</style>
+
+<style>
+    pre.ui-distance {
+        position:absolute;
+        bottom:10px;
+        left:100px;
+        padding:5px 10px;
+        background:rgba(0,0,0,0.5);
+        color:#fff;
+        font-size:11px;
+        line-height:18px;
+        border-radius:3px;
+    }
+</style>
 
 <div id='mapBox'></div>
+<pre id='distance' class='ui-distance' style="display: none"></pre>
+
+<script type="template" id="tripPopup">
+    <div class="marker-title"><i class="weui_icon_waiting_circle"></i>{{startAt}} 至 {{endAt}}</div>
+    <div class="cities">
+        <ul>
+            {{#cities}}
+            <li>{{name}}</li>
+            {{/cities}}
+        </ul>
+    </div>
+    <div><a>{{category}}</a> <span class="ml20">{{transportT}}&nbsp;出行</span> </div>
+    <div class="description">{{remark}}</div>
+</script>
 <script>
     var startLoc=[22.84,108.33];
     var LeafletId = "_leaflet_id";		//用来获取leaflet元素的属性名
     var TripId="_trip_id";
+    var TripLine="_trip_line";
+
+    var transports=JSON.parse(@{json(config.transports)});
+    var transportColors=JSON.parse(@{json(config.transportColors)});
 
     L.mapbox.accessToken = 'pk.eyJ1IjoiMDYwNGh4IiwiYSI6IlRCSHdURjQifQ.zQtLSY5fLRkh4dbJ8AGrUw';
     var map = L.mapbox.map('mapBox', 'mapbox.streets')
@@ -46,23 +84,33 @@
      * 加载旅行列表
      */
     function loadTrips(){
-        N.loadData("/trips",{},function(d){
+        N.loadData("/tripsFile",{},function(d){
+            if(typeof(d)==='string')
+                d=JSON.parse(d);
             //添加marker到地图中
             d.forEach(function(v,i){
                 //每个旅行创建一个FeatureLayer
                 var fc= L.mapbox.featureLayer().addTo(map);
                 //遍历其中的cities
                 var cities= v.cities||[];
+                v['transportT']=transports[v.transport];
+
                 //出发点不显示
                 for(var ci=0;ci<cities.length;ci++){
                     var c=cities[ci];
                     var m= L.marker([c.lat, c.lng],{
-                        icon: L.mapbox.marker.icon({'marker-color': '#fa0'}),
-                        title: c.name
+                        icon: L.mapbox.marker.icon({'marker-color': transportColors[v.transport]}),
+                        title: c.name,
+                        opacity:ci==0?0:0.7
                     }).on("click",function(e){
                         map.fitBounds(fc.getBounds());
+                        //绘制直线
+                        drawLines(fc);
 //                        var trip=trips[e.target[TripId]];
 //                        $.alert("弹出框",JSON.stringify(trip));
+                    }).on("popupclose",function(e){
+                        map.removeLayer(fc[TripLine]);
+                        $("#distance").hide();
                     }).bindPopup(buildTripInfo(v));
                     m[LeafletId]= c.name;
                     m[TripId]= v.id;
@@ -78,7 +126,31 @@
         });
     }
 
+    function drawLines(fc){
+        var lines = [];
+        var dis=0;
+        var latLng=undefined;
+        fc.eachLayer(function(marker) {
+            var ll=marker.getLatLng();
+            console.log(marker.icon, marker);
+            lines.push(ll);
+            dis+=latLng?latLng.distanceTo(ll):(function(){
+                latLng=ll;
+                return 0;
+            })();
+        });
+        var options = {
+            color: transportColors[trips[fc[LeafletId]].transport]       //获取交通工具
+        };
+        fc[TripLine] = L.polyline(lines, options).addTo(map);
+
+        //计算总的距离
+        setTimeout(function(){
+            $("#distance").html("本次旅行"+(dis/1000).toFixed(0) + 'Km').show();
+        },200);
+    }
+
     function buildTripInfo(t){
-        return t.startAt+"<div>途径城市：</div>";
+        return L.mapbox.template($("#tripPopup").html(), t);
     }
 </script>
