@@ -1,0 +1,84 @@
+@{layout("layout_map")}
+
+<div id='mapBox'></div>
+<script>
+    var startLoc=[22.84,108.33];
+    var LeafletId = "_leaflet_id";		//用来获取leaflet元素的属性名
+    var TripId="_trip_id";
+
+    L.mapbox.accessToken = 'pk.eyJ1IjoiMDYwNGh4IiwiYSI6IlRCSHdURjQifQ.zQtLSY5fLRkh4dbJ8AGrUw';
+    var map = L.mapbox.map('mapBox', 'mapbox.streets')
+            .setView(startLoc, 7);
+
+    $(document).ready(function(){
+        //创建总的图层
+        window.mapMainLayer = L.mapbox.featureLayer().addTo(map);
+
+        loadTrips();
+    });
+
+    function addMarker(latlng,title,id){
+        var m=L.marker(latlng, {
+            icon: L.mapbox.marker.icon({
+//            'marker-size': 'small',
+                'marker-symbol': 'bus',
+                'marker-color': '#fa0'
+            }),
+            title:title,
+        }).on("click",function(e){
+            map.panTo(e.target.getLatLng());
+        });
+
+        if(id!==undefined && typeof(id)!='function')
+            m[LeafletId] = id;
+
+        mapMainLayer.addLayer(m);
+        if(mapMainLayer.getLayers().length>2)
+            map.fitBounds(mapMainLayer.getBounds());
+    }
+
+    function fitBound(){
+        map.fitBounds(mapMainLayer.getBounds());
+    }
+
+    var trips={};
+    /**
+     * 加载旅行列表
+     */
+    function loadTrips(){
+        N.loadData("/trips",{},function(d){
+            //添加marker到地图中
+            d.forEach(function(v,i){
+                //每个旅行创建一个FeatureLayer
+                var fc= L.mapbox.featureLayer().addTo(map);
+                //遍历其中的cities
+                var cities= v.cities||[];
+                //出发点不显示
+                for(var ci=0;ci<cities.length;ci++){
+                    var c=cities[ci];
+                    var m= L.marker([c.lat, c.lng],{
+                        icon: L.mapbox.marker.icon({'marker-color': '#fa0'}),
+                        title: c.name
+                    }).on("click",function(e){
+                        map.fitBounds(fc.getBounds());
+//                        var trip=trips[e.target[TripId]];
+//                        $.alert("弹出框",JSON.stringify(trip));
+                    }).bindPopup(buildTripInfo(v));
+                    m[LeafletId]= c.name;
+                    m[TripId]= v.id;
+
+                    fc.addLayer(m)
+                }
+                fc[LeafletId]= v.id;
+                trips[v.id]=v;
+
+                mapMainLayer.addLayer(fc);
+            });
+            fitBound();
+        });
+    }
+
+    function buildTripInfo(t){
+        return t.startAt+"<div>途径城市：</div>";
+    }
+</script>
