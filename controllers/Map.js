@@ -5,7 +5,7 @@
 var fs=require("fs");
 
 exports.install=function(){
-    F.route("/map",index);
+    F.route("/",index);
     F.route("/trips",trips)
     F.route("/tripsFile", readTripsFile);
 };
